@@ -15,15 +15,6 @@ export class Assignment3 extends Scene {
             torus2: new defs.Torus(3, 15),
             sphere: new defs.Subdivision_Sphere(4),
             circle: new defs.Regular_2D_Polygon(1, 15),
-            // TODO:  Fill in as many additional shape instances as needed in this key/value table.
-            //        (Requirement 1)
-            sun: new defs.Subdivision_Sphere(4),
-            planet1: new (defs.Subdivision_Sphere.prototype.make_flat_shaded_version())(2),
-            planet2: new defs.Subdivision_Sphere(3),
-            planet3: new defs.Subdivision_Sphere(4),
-            planet4: new defs.Subdivision_Sphere(4),
-            moon: new (defs.Subdivision_Sphere.prototype.make_flat_shaded_version())(1),
-            ring: new defs.Torus(50, 50),
         };
 
         // *** Materials
@@ -33,21 +24,6 @@ export class Assignment3 extends Scene {
             test2: new Material(new Gouraud_Shader(),
                 {ambient: .4, diffusivity: .6, color: hex_color("#992828")}),
             ring: new Material(new Ring_Shader()),
-            // TODO:  Fill in as many additional material objects as needed in this key/value table.
-            //        (Requirement 4)
-            sun: new Material(new defs.Phong_Shader(),
-                {ambient: 1}),
-            planet1: new Material(new defs.Phong_Shader(), 
-                {ambient: 0, diffusivity: 1, specularity: 0, color: hex_color("#808080")}), // Gray, diffuse only
-            planet2_phong: new Material(new defs.Phong_Shader(),
-                {ambient: 0, diffusivity: 0.2, specularity: 1, color: hex_color("#80FFFF")}), // Swampy green-blue, low diffuse, max specular
-            planet2_gouraud: new Material(new Gouraud_Shader(),
-                {ambient: 0, diffusivity: 0.2, specularity: 1, color: hex_color("#80FFFF")}), // Gouraud shader
-            planet3: new Material(new defs.Phong_Shader(),
-                {ambient: 0, diffusivity: 1, specularity: 1, color: hex_color("#B08040")}), // Muddy brown-orange, max diffuse and specular
-            planet4: new Material(new defs.Phong_Shader(),
-                {ambient: 0, diffusivity: .5, specularity: 1, color: hex_color("#ADD8E6")}), // Soft light blue, smooth phong, high specular
-            moon: new Material(new defs.Phong_Shader(), {ambient: 0.3, diffusivity: 0.7, color: hex_color("#888888")}), // Gray moon
         }
 
         this.initial_camera_location = Mat4.look_at(vec3(0, 10, 20), vec3(0, 0, 0), vec3(0, 1, 0));
@@ -77,91 +53,6 @@ export class Assignment3 extends Scene {
 
         program_state.projection_transform = Mat4.perspective(
             Math.PI / 4, context.width / context.height, .1, 1000);
-
-        // TODO: Create Planets (Requirement 1)
-        const t = program_state.animation_time / 1000, dt = program_state.animation_delta_time / 1000;
-        let model_transform = Mat4.identity();
-        
-        let sun_transform = model_transform;
-
-        const sun_radius = 2 + Math.sin(2 * Math.PI * t / 10); // Radius varies from 1 to 3
-        const sun_rgb = 0.5 * (1 + Math.sin(2 * Math.PI * t / 10)); // RGB varies from 0 to 1
-        const sun_color = color(1, sun_rgb, sun_rgb, 1); // Color varies from red to white
-
-        sun_transform = sun_transform.times(Mat4.scale(sun_radius, sun_radius, sun_radius));
-        
-        // TODO: Lighting (Requirement 2)
-        const light_position = vec4(0, 0, 0, 1); // Sun is at origin
-        const light_size = 10 ** sun_radius; // Light size is 10^n where n is the sun radius
-        // The parameters of the Light are: position, color, size
-        program_state.lights = [new Light(light_position, sun_color, light_size)];
-
-        // Draw the sun with dynamic color and size
-        this.shapes.sun.draw(context, program_state, sun_transform, this.materials.sun.override({color: sun_color}));
-
-        // TODO:  Fill in matrix operations and drawing code to draw the solar system scene (Requirements 3 and 4)
-        
-        // Drawing the orbiting planets
-        const planet_orbit_distances = [5, 9, 13, 17]; // Distances from the sun
-        const planet_orbit_speeds = [1, 0.8, 0.6, 0.4]; // Speeds relative to the innermost planet
-
-        // Planet 1
-        let planet1_transform = Mat4.identity()
-            .times(Mat4.rotation(t * planet_orbit_speeds[0], 0, 1, 0)) // Rotation around the sun
-            .times(Mat4.translation(planet_orbit_distances[0], 0, 0)) // Distance from the sun
-
-        this.shapes.planet1.draw(context, program_state, planet1_transform, this.materials.planet1);
-
-        // Planet 2
-        const use_gouraud = Math.floor(t) % 2 === 0; // Toggle between Phong and Gouraud shading every second
-        const planet2_material = use_gouraud ? this.materials.planet2_gouraud : this.materials.planet2_phong;
-
-        let planet2_transform = Mat4.identity()
-            .times(Mat4.rotation(t * planet_orbit_speeds[1], 0, 1, 0)) // Rotation around the sun
-            .times(Mat4.translation(planet_orbit_distances[1], 0, 0)) // Distance from the sun
-
-        this.shapes.planet2.draw(context, program_state, planet2_transform, planet2_material);
-        
-        // Add more planets similarly
-        // Planet 3
-        let planet3_transform = Mat4.identity()
-            .times(Mat4.rotation(t * planet_orbit_speeds[2], 0, 1, 0)) // Rotation around the sun
-            .times(Mat4.translation(planet_orbit_distances[2], 0, 0)) // Distance from the sun
-
-        this.shapes.planet3.draw(context, program_state, planet3_transform, this.materials.planet3);
-
-        // Planet 3's ring
-        let ring_transform = planet3_transform
-            .times(Mat4.scale(3, 3, 0.1)); // Scale the ring
-
-        this.shapes.ring.draw(context, program_state, ring_transform, this.materials.ring);
-
-        // Planet 4
-        let planet4_transform = Mat4.identity()
-            .times(Mat4.rotation(t * planet_orbit_speeds[3], 0, 1, 0)) // Rotation around the sun
-            .times(Mat4.translation(planet_orbit_distances[3], 0, 0)) // Distance from the sun
-
-        this.shapes.planet4.draw(context, program_state, planet4_transform, this.materials.planet4);
-
-        // Planet 4's moon
-        let moon_transform = planet4_transform
-            .times(Mat4.rotation(t * 2, 0, 1, 0)) // Faster rotation around planet 4
-            .times(Mat4.translation(2, 0, 0)) // Small orbital distance from planet 4
-            .times(Mat4.scale(0.5, 0.5, 0.5)); // Smaller moon size
-
-        this.shapes.moon.draw(context, program_state, moon_transform, this.materials.moon);
-        
-        this.planet_1 = Mat4.inverse(planet1_transform.times(Mat4.translation(0, 0, 5)));
-        this.planet_2 = Mat4.inverse(planet2_transform.times(Mat4.translation(0, 0, 5)));
-        this.planet_3 = Mat4.inverse(planet3_transform.times(Mat4.translation(0, 0, 5)));
-        this.planet_4 = Mat4.inverse(planet4_transform.times(Mat4.translation(0, 0, 5)));
-        this.moon = Mat4.inverse(moon_transform.times(Mat4.translation(0, 0, 5)));
-        this.default = this.initial_camera_location;
-
-        // Update camera position based on the selected planet
-        if (this.attached != null) {
-            program_state.camera_inverse = this.attached().map((x,i) => Vector.from(program_state.camera_inverse[i]).mix(x, 0.1));
-        }
     }
 }
 

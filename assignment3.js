@@ -1,4 +1,6 @@
 import {defs, tiny} from './examples/common.js';
+import { Shape_From_File } from './examples/obj-file-demo.js';
+import { Text_Line } from './examples/text-demo.js';
 
 const {
     Vector, Vector3, vec, vec3, vec4, color, hex_color, Shader, Matrix, Mat4, Light, Shape, Material, Scene,
@@ -15,6 +17,8 @@ export class Assignment3 extends Scene {
             torus2: new defs.Torus(3, 15),
             sphere: new defs.Subdivision_Sphere(4),
             circle: new defs.Regular_2D_Polygon(1, 15),
+            // new objects
+            paddle: new Shape_From_File("assets/10519_Pingpong_paddle_v1_L3.obj"),
         };
 
         // *** Materials
@@ -24,6 +28,8 @@ export class Assignment3 extends Scene {
             test2: new Material(new Gouraud_Shader(),
                 {ambient: .4, diffusivity: .6, color: hex_color("#992828")}),
             ring: new Material(new Ring_Shader()),
+            paddle: new Material(new defs.Phong_Shader(),
+                {ambient: .4, diffusivity: .6, color: hex_color("#ffffff")}),
         }
 
         this.initial_camera_location = Mat4.look_at(vec3(0, 10, 20), vec3(0, 0, 0), vec3(0, 1, 0));
@@ -53,6 +59,21 @@ export class Assignment3 extends Scene {
 
         program_state.projection_transform = Mat4.perspective(
             Math.PI / 4, context.width / context.height, .1, 1000);
+
+        const t = program_state.animation_time / 1000, dt = program_state.animation_delta_time / 1000;
+        let model_transform = Mat4.identity();
+
+        // Set the light above the paddle
+        const paddle_height = 2; // Adjust as needed
+        const light_position = vec4(0, paddle_height, 0, 1);
+        const light_color = color(1, 1, 1, 1); // White light
+        const light_radius = 1; // Adjust the intensity
+        program_state.lights = [new Light(light_position, light_color, 10 ** light_radius)];
+
+        // Draw the paddle in the middle of the scene
+        const paddle_transform = model_transform.times(Mat4.translation(0, 0, 0)).times(Mat4.scale(0.5, 0.5, 0.5));
+        this.shapes.paddle.draw(context, program_state, paddle_transform, this.materials.paddle);
+        
     }
 }
 

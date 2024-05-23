@@ -3,7 +3,7 @@ import { Shape_From_File } from './examples/obj-file-demo.js';
 import { Text_Line } from './examples/text-demo.js';
 
 const {
-    Vector, Vector3, vec, vec3, vec4, color, hex_color, Shader, Matrix, Mat4, Light, Shape, Material, Scene,
+    Vector, Vector3, vec, vec3, vec4, color, hex_color, Shader, Matrix, Mat4, Light, Shape, Material, Texture, Scene,
 } = tiny;
 
 export class Assignment3 extends Scene {
@@ -17,8 +17,12 @@ export class Assignment3 extends Scene {
             torus2: new defs.Torus(3, 15),
             sphere: new defs.Subdivision_Sphere(4),
             circle: new defs.Regular_2D_Polygon(1, 15),
-            // new objects
             paddle: new Shape_From_File("assets/10519_Pingpong_paddle_v1_L3.obj"),
+            teapot: new Shape_From_File("assets/teapot.obj"),
+            pingpong_table: new Shape_From_File("assets/10520_pingpongtable_L2.obj"),
+            box: new defs.Cube(),  // Define a cube shape for the room
+            floor: new defs.Cube(), // Define a cube shape for the floor
+            barrier: new defs.Cube() // Define a cube shape for the barriers
         };
 
         // *** Materials
@@ -28,9 +32,37 @@ export class Assignment3 extends Scene {
             test2: new Material(new Gouraud_Shader(),
                 {ambient: .4, diffusivity: .6, color: hex_color("#992828")}),
             ring: new Material(new Ring_Shader()),
-            paddle: new Material(new defs.Phong_Shader(),
-                {ambient: .4, diffusivity: .6, color: hex_color("#ffffff")}),
+            paddle_texture_1: new Material(new defs.Phong_Shader(), {
+                ambient: .3, diffusivity: .5, specularity: .5,
+                color: hex_color("#0000FF")  // Blue paddle
+            }),
+            paddle_texture_2: new Material(new defs.Phong_Shader(), {
+                ambient: .3, diffusivity: .5, specularity: .5,
+                color: hex_color("#FF0000")  // Red paddle
+            }),
+            room: new Material(new defs.Phong_Shader(), {
+                ambient: 1, diffusivity: .8, color: hex_color("#87CEEB")  // Light blue color for the room
+            }),
+            floor: new Material(new defs.Phong_Shader(), {
+                ambient: .4, diffusivity: .6, color: hex_color("#D3A400")  // Wooden color for the floor
+            }),
+            barrier: new Material(new defs.Phong_Shader(), {
+                ambient: .4, diffusivity: .6, color: hex_color("#000080")  // Dark blue color for the barriers
+            }),
+            table: new Material(new defs.Phong_Shader(), {
+                ambient: .4, diffusivity: .6, color: hex_color("#00BFFF")  // Blue color for the table
+            })
         }
+
+        this.stars = new Material(new defs.Textured_Phong(1), {
+            color: color(.5, .5, .5, 1),
+            ambient: .3, diffusivity: .5, specularity: .5, texture: new Texture("assets/stars.png")
+        });
+        // Bump mapped:
+        this.bumps = new Material(new defs.Fake_Bump_Map(1), {
+            color: color(0, 0, 0, 1),
+            ambient: .3, diffusivity: .5, specularity: .5, texture: new Texture("assets/stars.png")
+        });
 
         this.initial_camera_location = Mat4.look_at(vec3(0, 10, 20), vec3(0, 0, 0), vec3(0, 1, 0));
     }
@@ -56,24 +88,75 @@ export class Assignment3 extends Scene {
             // Define the global camera and projection matrices, which are stored in program_state.
             program_state.set_camera(this.initial_camera_location);
         }
-
+    
         program_state.projection_transform = Mat4.perspective(
             Math.PI / 4, context.width / context.height, .1, 1000);
-
+    
         const t = program_state.animation_time / 1000, dt = program_state.animation_delta_time / 1000;
         let model_transform = Mat4.identity();
-
+    
         // Set the light above the paddle
         const paddle_height = 2; // Adjust as needed
         const light_position = vec4(0, paddle_height, 0, 1);
         const light_color = color(1, 1, 1, 1); // White light
-        const light_radius = 1; // Adjust the intensity
+        const light_radius = 10; // Adjust the intensity
         program_state.lights = [new Light(light_position, light_color, 10 ** light_radius)];
-
-        // Draw the paddle in the middle of the scene
-        const paddle_transform = model_transform.times(Mat4.translation(0, 0, 0)).times(Mat4.scale(0.5, 0.5, 0.5));
-        this.shapes.paddle.draw(context, program_state, paddle_transform, this.materials.paddle);
-        
+    
+        // Draw the room (a larger box) around the scene
+        const room_transform = model_transform.times(Mat4.scale(30, 30, 30));
+        this.shapes.box.draw(context, program_state, room_transform, this.materials.room);
+    
+        // Draw the floor underneath the ping pong table, raised to the table level
+        const floor_transform = model_transform.times(Mat4.translation(0, 1, 0)).times(Mat4.scale(30, 0.1, 30));
+        this.shapes.floor.draw(context, program_state, floor_transform, this.materials.floor);
+    
+        // Draw the ping pong table in the scene, upright and scaled up
+        const table_transform = model_transform.times(Mat4.translation(0, 3, 0)).times(Mat4.rotation(-Math.PI / 2, 1, 0, 0)).times(Mat4.scale(3, 3, 3));
+        if (this.shapes.pingpong_table.ready) {
+            this.shapes.pingpong_table.draw(context, program_state, table_transform, this.materials.table);
+        }
+    
+        // Draw the paddle on the left side of the table (short end) and closer
+        const left_paddle_transform = model_transform.times(Mat4.translation(0, 3, 8)).times(Mat4.rotation(Math.PI / 2, 1, 0, 0)).times(Mat4.scale(0.5, 0.5, 0.5));
+        if (this.shapes.paddle.ready) {
+            this.shapes.paddle.draw(context, program_state, left_paddle_transform, this.materials.paddle_texture_1);
+        }
+    
+        // Draw the paddle on the right side of the table (short end) and closer
+        const right_paddle_transform = model_transform.times(Mat4.translation(0, 3, -8)).times(Mat4.rotation(Math.PI / 2, 1, 0, 0)).times(Mat4.scale(0.5, 0.5, 0.5));
+        if (this.shapes.paddle.ready) {
+            this.shapes.paddle.draw(context, program_state, right_paddle_transform, this.materials.paddle_texture_2);
+        }
+    
+        // Variables for barrier dimensions and positions
+        const barrier_height = 1.5; // Half the height of the table
+        const barrier_thickness = 0.1;
+        const barrier_length = 4; // Length for both long and short sides
+        const distance_from_table_long = 6; // Distance from table for long barriers
+        const distance_from_table_short = 10; // Distance from table for short barriers
+        const barrier_offset_long = 6; // Offset for long barriers from center
+    
+        // Left barriers on the long end of the table
+        const left_long_barrier1_transform = model_transform.times(Mat4.translation(-distance_from_table_long, barrier_height, barrier_offset_long)).times(Mat4.scale(barrier_thickness, barrier_height, barrier_length));
+        this.shapes.barrier.draw(context, program_state, left_long_barrier1_transform, this.materials.barrier);
+    
+        const left_long_barrier2_transform = model_transform.times(Mat4.translation(-distance_from_table_long, barrier_height, -barrier_offset_long)).times(Mat4.scale(barrier_thickness, barrier_height, barrier_length));
+        this.shapes.barrier.draw(context, program_state, left_long_barrier2_transform, this.materials.barrier);
+    
+        // Right barriers on the long end of the table
+        const right_long_barrier1_transform = model_transform.times(Mat4.translation(distance_from_table_long, barrier_height, barrier_offset_long)).times(Mat4.scale(barrier_thickness, barrier_height, barrier_length));
+        this.shapes.barrier.draw(context, program_state, right_long_barrier1_transform, this.materials.barrier);
+    
+        const right_long_barrier2_transform = model_transform.times(Mat4.translation(distance_from_table_long, barrier_height, -barrier_offset_long)).times(Mat4.scale(barrier_thickness, barrier_height, barrier_length));
+        this.shapes.barrier.draw(context, program_state, right_long_barrier2_transform, this.materials.barrier);
+    
+        // Front barrier on the short end of the table
+        const front_barrier_transform = model_transform.times(Mat4.translation(0, barrier_height, distance_from_table_short)).times(Mat4.scale(barrier_length, barrier_height, barrier_thickness));
+        this.shapes.barrier.draw(context, program_state, front_barrier_transform, this.materials.barrier);
+    
+        // Back barrier on the short end of the table
+        const back_barrier_transform = model_transform.times(Mat4.translation(0, barrier_height, -distance_from_table_short)).times(Mat4.scale(barrier_length, barrier_height, barrier_thickness));
+        this.shapes.barrier.draw(context, program_state, back_barrier_transform, this.materials.barrier);
     }
 }
 

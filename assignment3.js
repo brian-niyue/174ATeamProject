@@ -89,16 +89,19 @@ export class Assignment3 extends Scene {
         this.pongY = 5;
         this.pongZ = 5;
 
-        // pong ball z direction speed
-        this.z_speed = 7.5;
-
-        // pong ball y direction speed / acceleration
-        this.y_speed =  0; // Speed in loc1
-        this.y_accel1 = -.0666; // Acceleration in y direction when ball is going downwards
-        this.y_accel2 = .6; // Acceleration in y direction when ball is going upwards
+        // pong ball timestamp; will use this timestamp and which motion phase ball is in to get position
+        this.pong_timestamp = 0;
 
         // checks if game over
         this.in_bounds = true;
+
+        // // pong ball z direction speed
+        // this.z_speed = 7.5;
+        //
+        // // pong ball y direction speed / acceleration
+        // this.y_speed =  0; // Speed in loc1
+        // this.y_accel1 = -1.3; // Acceleration in y direction when ball is going downwards
+        // this.y_accel2 = .6; // Acceleration in y direction when ball is going upwards
 
     }
 
@@ -175,12 +178,12 @@ export class Assignment3 extends Scene {
         // Paddle 1 swing animation logic
         if (this.swing_paddle_1) {
             this.swing_progress_1 += dt;
-            if (this.swing_progress_1 >= 1) {
-                this.swing_progress_1 = 1;
+            if (this.swing_progress_1 >= .5) {
+                this.swing_progress_1 = .5;
                 this.swing_paddle_1 = false;
             }
         }
-        const swing_angle_1 = Math.PI / 4 * Math.sin(this.swing_progress_1 * Math.PI);
+        const swing_angle_1 = Math.PI / 4 * Math.sin(2 * this.swing_progress_1 * Math.PI);
         // Draw the blue paddle on the left side of the table (short end) and closer
         let left_paddle_transform = model_transform
             .times(Mat4.translation(this.paddle1_x, 5, 5.5));
@@ -203,12 +206,12 @@ export class Assignment3 extends Scene {
         // Paddle 2 swing animation logic
         if (this.swing_paddle_2) {
             this.swing_progress_2 += dt;
-            if (this.swing_progress_2 >= 1) {
-                this.swing_progress_2 = 1;
+            if (this.swing_progress_2 >= .5) {
+                this.swing_progress_2 = .5;
                 this.swing_paddle_2 = false;
             }
         }
-        const swing_angle_2 = Math.PI / 4 * Math.sin(this.swing_progress_2 * Math.PI);
+        const swing_angle_2 = Math.PI / 4 * Math.sin(2 * this.swing_progress_2 * Math.PI);
         // Draw the red paddle on the right side of the table (short end) and closer
         let right_paddle_transform = model_transform
             .times(Mat4.translation(this.paddle2_x, 5, -5.5));
@@ -228,72 +231,62 @@ export class Assignment3 extends Scene {
             this.shapes.paddle.draw(context, program_state, right_paddle_transform, this.materials.paddle_texture_2);
         }
 
+        // Ball collision detection //
 
         // If z of ball is near 5, check for collision with paddle 1
         // If there is collision, pong now in phase 1
-        if (this.pongZ > 4.95 && this.pongZ < 5.05 && this.pong_loc4){
+        if (this.pongZ > 4.95 && this.pong_loc4) {
+            this.pong_timestamp = t;
             this.pong_loc4 = false;
             this.pong_loc1 = true;
-            this.y_speed = 0;
-            this.pongZ = 5;
-            this.pongY = 5;
         }
 
-
-        // If y of ball is near 0
+        // If y of ball is near 3 (table edge)
         // If pong_loc1 true, then pong_loc2 true
         // Else if pong_loc3 true, then pong_loc4 true
-        if (this.pongY < 0.02){
+        if (this.pongY < 3.05 ){
             if (this.pong_loc1){
+                this.pong_timestamp = t;
                 this.pong_loc1 = false;
                 this.pong_loc2 = true;
-                this.y_speed = 0;
-                this.pongY = 0;
-                this.pongZ = 7.5
             }
             else if (this.pong_loc3){
+                this.pong_timestamp = t;
                 this.pong_loc3 = false;
                 this.pong_loc4 = true;
-                this.y_speed = 0;
-                this.pongY = 0;
-                this.pongZ = 2.5
             }
         }
 
         // If z of ball is near -5, check for collision with paddle 2
         // If there is collision, pong_loc3 true
-        if (this.pongZ < -4.95 && this.pongZ > -5.05 && this.pong_loc2){
+        if (this.pongZ < -4.95 && this.pong_loc2){
+            this.pong_timestamp = t;
             this.pong_loc2 = false;
             this.pong_loc3 = true;
-            this.y_speed = 0;
-            this.pongZ = -5;
-            this.pongY = 5;
         }
 
-        // Ping pong ball location changing based on which phase of motion
+        // Ball movement update //
+        let delta_t = t - this.pong_timestamp;
         if (this.pong_loc1){
-            this.pongZ -= this.z_speed * dt;
-
-            this.y_speed += this.y_accel1 * dt;
-            this.pongY += this.y_speed * dt;
+            this.pongZ = (delta_t) * (-7.5) + 5;
+            this.pongY = (5 - (4 * (delta_t) * (delta_t)));
         }
-        else if (this.pong_loc2){
-            this.pongZ -= this.z_speed * dt;
 
-            this.y_speed += this.y_accel2 * dt;
-            this.pongY += this.y_speed * dt;
-        }
+        // y position same as phase 1, z is flipped
         else if (this.pong_loc3){
-            this.pongZ += this.z_speed * dt;
-
-            this.y_speed += this.y_accel1 * dt;
-            this.pongY += this.y_speed * dt;
+            this.pongZ = (delta_t) * 7.5 - 5;
+            this.pongY = (5 - 4 * (delta_t) * (delta_t));
         }
-        else if (this.pong_loc4){
-            this.pongZ += this.z_speed * dt;
 
-            this.y_speed += this.y_accel2 * dt;
-            this.pongY += this.y_speed * dt;
+        else if (this.pong_loc2){
+            this.pongZ = (delta_t) * (-5) - 2.5;
+            this.pongY = (3 + 6 * delta_t - 8 * (delta_t) * (delta_t));
+        }
+
+        // y position same as phase 2, z is flipped
+        else if (this.pong_loc4){
+            this.pongZ = (delta_t) * (5) + 2.5;
+            this.pongY = (3 + 6 * delta_t - 8 * (delta_t) * (delta_t));
         }
 
         // Draw ping pong ball in current location
@@ -302,6 +295,73 @@ export class Assignment3 extends Scene {
             .times(Mat4.scale(0.1429, 0.1429, 0.1429)); //7 Times smaller in each direction
 
         this.shapes.pong_ball.draw(context, program_state, pong_transform, this.materials.pong_ball);
+
+
+        // // If z of ball is near 5, check for collision with paddle 1
+        // // If there is collision, pong now in phase 1
+        // if (this.pongZ > 4.95 && this.pongZ < 5.05 && this.pong_loc4){
+        //     this.pong_loc4 = false;
+        //     this.pong_loc1 = true;
+        //     this.y_speed = 0;
+        //     this.pongZ = 5;
+        //     this.pongY = 5;
+        // }
+        //
+        // // If y of ball is near 3 (table edge)
+        // // If pong_loc1 true, then pong_loc2 true
+        // // Else if pong_loc3 true, then pong_loc4 true
+        // if (this.pongY < 3.02 ){
+        //     if (this.pong_loc1){
+        //         this.pong_loc1 = false;
+        //         this.pong_loc2 = true;
+        //         this.y_speed = 0;
+        //         this.pongY = 3;
+        //         this.pongZ = -2.5;
+        //     }
+        //     else if (this.pong_loc3){
+        //         this.pong_loc3 = false;
+        //         this.pong_loc4 = true;
+        //         this.y_speed = 0;
+        //         this.pongY = 3;
+        //         this.pongZ = 2.5;
+        //     }
+        // }
+        //
+        // // If z of ball is near -5, check for collision with paddle 2
+        // // If there is collision, pong_loc3 true
+        // if (this.pongZ < -4.95 && this.pongZ > -5.05 && this.pong_loc2){
+        //     this.pong_loc2 = false;
+        //     this.pong_loc3 = true;
+        //     this.y_speed = 0;
+        //     this.pongZ = -5;
+        //     this.pongY = 5;
+        // }
+        //
+        // // Ping pong ball location changing based on which phase of motion
+        // if (this.pong_loc1){
+        //     this.pongZ -= this.z_speed * dt;
+        //
+        //     this.y_speed += this.y_accel1 * dt;
+        //     this.pongY += this.y_speed * dt;
+        // }
+        // else if (this.pong_loc2){
+        //     this.pongZ -= this.z_speed * dt;
+        //
+        //     this.y_speed += this.y_accel2 * dt;
+        //     this.pongY += this.y_speed * dt;
+        // }
+        // else if (this.pong_loc3){
+        //     this.pongZ += this.z_speed * dt;
+        //
+        //     this.y_speed += this.y_accel1 * dt;
+        //     this.pongY += this.y_speed * dt;
+        // }
+        // else if (this.pong_loc4){
+        //     this.pongZ += this.z_speed * dt;
+        //
+        //     this.y_speed += this.y_accel2 * dt;
+        //     this.pongY += this.y_speed * dt;
+        // }
 
     
         // Variables for barrier dimensions and positions

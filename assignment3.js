@@ -54,31 +54,43 @@ export class Assignment3 extends Scene {
             })
         }
 
-        this.stars = new Material(new defs.Textured_Phong(1), {
-            color: color(.5, .5, .5, 1),
-            ambient: .3, diffusivity: .5, specularity: .5, texture: new Texture("assets/stars.png")
-        });
-        // Bump mapped:
-        this.bumps = new Material(new defs.Fake_Bump_Map(1), {
-            color: color(0, 0, 0, 1),
-            ambient: .3, diffusivity: .5, specularity: .5, texture: new Texture("assets/stars.png")
-        });
+
 
         this.initial_camera_location = Mat4.look_at(vec3(0, 10, 20), vec3(0, 0, 0), vec3(0, 1, 0));
+        this.paddle1_x = 0;
+        this.paddle2_x = 0;
+        this.paddle_speed = 3;
+        this.swing_paddle_1 = false;  // Boolean to control the blue paddle swinging animation
+        this.swing_progress_1 = 0;    // Variable to track the progress of the blue paddle swing
+        this.swing_paddle_2 = false;  // Boolean to control the red paddle swinging animation
+        this.swing_progress_2 = 0;    // Variable to track the progress of the red paddle swing
+        this.moving_paddle1_left = false;
+        this.moving_paddle1_right = false;
+        this.moving_paddle2_left = false;
+        this.moving_paddle2_right = false;
     }
 
     make_control_panel() {
         // Draw the scene's buttons, setup their actions and keyboard shortcuts, and monitor live measurements.
-        this.key_triggered_button("View solar system", ["Control", "0"], () => this.attached = () => this.default);
+        this.key_triggered_button("Paddle 1 Left", ["c"], () => this.moving_paddle1_left = true, undefined, () => this.moving_paddle1_left = false);
+        this.key_triggered_button("Paddle 1 Right", ["v"], () => this.moving_paddle1_right = true, undefined, () => this.moving_paddle1_right = false);
+        this.key_triggered_button("Swing Paddle 1", ["b"], () => {
+            if (!this.swing_paddle_1) {
+                this.swing_paddle_1 = true;
+                this.swing_progress_1 = 0;
+            }
+        });
         this.new_line();
-        this.key_triggered_button("Attach to planet 1", ["Control", "1"], () => this.attached = () => this.planet_1);
-        this.key_triggered_button("Attach to planet 2", ["Control", "2"], () => this.attached = () => this.planet_2);
-        this.new_line();
-        this.key_triggered_button("Attach to planet 3", ["Control", "3"], () => this.attached = () => this.planet_3);
-        this.key_triggered_button("Attach to planet 4", ["Control", "4"], () => this.attached = () => this.planet_4);
-        this.new_line();
-        this.key_triggered_button("Attach to moon", ["Control", "m"], () => this.attached = () => this.moon);
+        this.key_triggered_button("Paddle 2 Left", ["j"], () => this.moving_paddle2_left = true, undefined, () => this.moving_paddle2_left = false);
+        this.key_triggered_button("Paddle 2 Right", ["k"], () => this.moving_paddle2_right = true, undefined, () => this.moving_paddle2_right = false);
+        this.key_triggered_button("Swing Paddle 2", ["l"], () => {
+            if (!this.swing_paddle_2) {
+                this.swing_paddle_2 = true;
+                this.swing_progress_2 = 0;
+            }
+        });
     }
+
 
     display(context, program_state) {
         // display():  Called once per frame of animation.
@@ -96,8 +108,8 @@ export class Assignment3 extends Scene {
         let model_transform = Mat4.identity();
     
         // Set the light above the paddle
-        const paddle_height = 2; // Adjust as needed
-        const light_position = vec4(0, paddle_height, 0, 1);
+        const light_height = 20; // Adjust as needed
+        const light_position = vec4(0, light_height, 0, 1);
         const light_color = color(1, 1, 1, 1); // White light
         const light_radius = 10; // Adjust the intensity
         program_state.lights = [new Light(light_position, light_color, 10 ** light_radius)];
@@ -116,17 +128,63 @@ export class Assignment3 extends Scene {
             this.shapes.pingpong_table.draw(context, program_state, table_transform, this.materials.table);
         }
     
-        // Draw the paddle on the left side of the table (short end) and closer
-        const left_paddle_transform = model_transform.times(Mat4.translation(0, 3, 8)).times(Mat4.rotation(Math.PI / 2, 1, 0, 0)).times(Mat4.scale(0.5, 0.5, 0.5));
+        // Update paddle positions based on key presses and delta time
+        if (this.moving_paddle1_left) this.paddle1_x -= this.paddle_speed * dt;
+        if (this.moving_paddle1_right) this.paddle1_x += this.paddle_speed * dt;
+        if (this.moving_paddle2_left) this.paddle2_x -= this.paddle_speed * dt;
+        if (this.moving_paddle2_right) this.paddle2_x += this.paddle_speed * dt;
+    
+        // Paddle 1 swing animation logic
+        if (this.swing_paddle_1) {
+            this.swing_progress_1 += dt;
+            if (this.swing_progress_1 >= 1) {
+                this.swing_progress_1 = 1;
+                this.swing_paddle_1 = false;
+            }
+        }
+        const swing_angle_1 = Math.PI / 4 * Math.sin(this.swing_progress_1 * Math.PI);
+        // Draw the blue paddle on the left side of the table (short end) and closer
+        let left_paddle_transform = model_transform.times(Mat4.translation(this.paddle1_x, 5, 5.5));
+        // Apply the rotation to tilt the handle to the top right
+        left_paddle_transform = left_paddle_transform.times(Mat4.rotation(-Math.PI / 4, 0, 0, 1));
+        if (this.swing_paddle_1) {
+            left_paddle_transform = left_paddle_transform
+                .times(Mat4.translation(0, 0.5, 0)) // Move the pivot point to the handle
+                .times(Mat4.rotation(swing_angle_1, 1, 0, 0)) // Rotate towards the table
+                .times(Mat4.translation(0, -0.5, 0)); // Move the pivot point back
+        }
+        left_paddle_transform = left_paddle_transform
+            .times(Mat4.rotation(Math.PI / 2, 1, 0, 0))
+            .times(Mat4.scale(0.5, 0.5, 0.5));
         if (this.shapes.paddle.ready) {
             this.shapes.paddle.draw(context, program_state, left_paddle_transform, this.materials.paddle_texture_1);
         }
-    
-        // Draw the paddle on the right side of the table (short end) and closer
-        const right_paddle_transform = model_transform.times(Mat4.translation(0, 3, -8)).times(Mat4.rotation(Math.PI / 2, 1, 0, 0)).times(Mat4.scale(0.5, 0.5, 0.5));
-        if (this.shapes.paddle.ready) {
-            this.shapes.paddle.draw(context, program_state, right_paddle_transform, this.materials.paddle_texture_2);
+
+    // Paddle 2 swing animation logic
+    if (this.swing_paddle_2) {
+        this.swing_progress_2 += dt;
+        if (this.swing_progress_2 >= 1) {
+            this.swing_progress_2 = 1;
+            this.swing_paddle_2 = false;
         }
+    }
+    const swing_angle_2 = Math.PI / 4 * Math.sin(this.swing_progress_2 * Math.PI);
+    // Draw the red paddle on the right side of the table (short end) and closer
+    let right_paddle_transform = model_transform.times(Mat4.translation(this.paddle2_x, 5, -5.5));
+    // Apply the rotation to tilt the handle to the top left
+    right_paddle_transform = right_paddle_transform.times(Mat4.rotation(Math.PI / 4, 0, 0, 1));
+    if (this.swing_paddle_2) {
+        right_paddle_transform = right_paddle_transform
+            .times(Mat4.translation(0, 0.5, 0)) // Move the pivot point to the handle
+            .times(Mat4.rotation(-swing_angle_2, 1, 0, 0)) // Rotate towards the table
+            .times(Mat4.translation(0, -0.5, 0)); // Move the pivot point back
+    }
+    right_paddle_transform = right_paddle_transform
+        .times(Mat4.rotation(Math.PI / 2, 1, 0, 0))
+        .times(Mat4.scale(0.5, 0.5, 0.5));
+    if (this.shapes.paddle.ready) {
+        this.shapes.paddle.draw(context, program_state, right_paddle_transform, this.materials.paddle_texture_2);
+    }
     
         // Variables for barrier dimensions and positions
         const barrier_height = 1.5; // Half the height of the table

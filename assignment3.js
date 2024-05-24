@@ -44,8 +44,9 @@ export class Assignment3 extends Scene {
             room: new Material(new defs.Phong_Shader(), {
                 ambient: 1, diffusivity: .8, color: hex_color("#87CEEB")  // Light blue color for the room
             }),
-            floor: new Material(new defs.Phong_Shader(), {
-                ambient: .4, diffusivity: .6, color: hex_color("#D3A400")  // Wooden color for the floor
+            floor: new Material(new defs.Textured_Phong(1), {
+                color: color(.5, .5, .5, 1),
+                ambient: .3, diffusivity: .5, specularity: .5, texture: new Texture("assets/floor.jpg")
             }),
             barrier: new Material(new defs.Phong_Shader(), {
                 ambient: .4, diffusivity: .6, color: hex_color("#000080")  // Dark blue color for the barriers

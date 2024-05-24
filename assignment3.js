@@ -22,7 +22,8 @@ export class Assignment3 extends Scene {
             pingpong_table: new Shape_From_File("assets/10520_pingpongtable_L2.obj"),
             box: new defs.Cube(),  // Define a cube shape for the room
             floor: new defs.Cube(), // Define a cube shape for the floor
-            barrier: new defs.Cube() // Define a cube shape for the barriers
+            barrier: new defs.Cube(), // Define a cube shape for the barriers
+            pong_ball: new defs.Subdivision_Sphere(4),
         };
 
         // *** Materials
@@ -51,12 +52,19 @@ export class Assignment3 extends Scene {
             }),
             table: new Material(new defs.Phong_Shader(), {
                 ambient: .4, diffusivity: .6, color: hex_color("#00BFFF")  // Blue color for the table
-            })
+            }),
+            pong_ball: new Material(new defs.Phong_Shader(), {
+                color: hex_color("#F06400"), ambient: 1, diffusivity: 1,  specularity: 1
+            }),
         }
 
 
 
-        this.initial_camera_location = Mat4.look_at(vec3(0, 10, 20), vec3(0, 0, 0), vec3(0, 1, 0));
+        this.initial_camera_location = Mat4.look_at(
+            vec3(0, 10, 20),
+            vec3(0, 0, 0),
+            vec3(0, 1, 0));
+
         this.paddle1_x = 0;
         this.paddle2_x = 0;
         this.paddle_speed = 3;
@@ -68,6 +76,29 @@ export class Assignment3 extends Scene {
         this.moving_paddle1_right = false;
         this.moving_paddle2_left = false;
         this.moving_paddle2_right = false;
+
+        // pong ball booleans denoting 4 phases of motion
+        this.pong_loc1 = true;
+        this.pong_loc2 = false;
+        this.pong_loc3 = false;
+        this.pong_loc4= false;
+
+        // pong ball position
+        this.pongX = 0;
+        this.pongY = 5;
+        this.pongZ = 5;
+
+        // pong ball z direction speed
+        this.z_speed = 7.5;
+
+        // pong ball y direction speed / acceleration
+        this.y_speed =  0; // Speed in loc1
+        this.y_accel1 = -.0666; // Acceleration in y direction when ball is going downwards
+        this.y_accel2 = .6; // Acceleration in y direction when ball is going upwards
+
+        // checks if game over
+        this.in_bounds = true;
+
     }
 
     make_control_panel() {
@@ -115,15 +146,21 @@ export class Assignment3 extends Scene {
         program_state.lights = [new Light(light_position, light_color, 10 ** light_radius)];
     
         // Draw the room (a larger box) around the scene
-        const room_transform = model_transform.times(Mat4.scale(30, 30, 30));
+        const room_transform = model_transform
+            .times(Mat4.scale(30, 30, 30));
         this.shapes.box.draw(context, program_state, room_transform, this.materials.room);
     
         // Draw the floor underneath the ping pong table, raised to the table level
-        const floor_transform = model_transform.times(Mat4.translation(0, 1, 0)).times(Mat4.scale(30, 0.1, 30));
+        const floor_transform = model_transform
+            .times(Mat4.translation(0, 1, 0))
+            .times(Mat4.scale(30, 0.1, 30));
         this.shapes.floor.draw(context, program_state, floor_transform, this.materials.floor);
     
         // Draw the ping pong table in the scene, upright and scaled up
-        const table_transform = model_transform.times(Mat4.translation(0, 3, 0)).times(Mat4.rotation(-Math.PI / 2, 1, 0, 0)).times(Mat4.scale(3, 3, 3));
+        const table_transform = model_transform
+            .times(Mat4.translation(0, 3, 0))
+            .times(Mat4.rotation(-Math.PI / 2, 1, 0, 0))
+            .times(Mat4.scale(3, 3, 3));
         if (this.shapes.pingpong_table.ready) {
             this.shapes.pingpong_table.draw(context, program_state, table_transform, this.materials.table);
         }
@@ -144,9 +181,11 @@ export class Assignment3 extends Scene {
         }
         const swing_angle_1 = Math.PI / 4 * Math.sin(this.swing_progress_1 * Math.PI);
         // Draw the blue paddle on the left side of the table (short end) and closer
-        let left_paddle_transform = model_transform.times(Mat4.translation(this.paddle1_x, 5, 5.5));
+        let left_paddle_transform = model_transform
+            .times(Mat4.translation(this.paddle1_x, 5, 5.5));
         // Apply the rotation to tilt the handle to the top right
-        left_paddle_transform = left_paddle_transform.times(Mat4.rotation(-Math.PI / 4, 0, 0, 1));
+        left_paddle_transform = left_paddle_transform
+            .times(Mat4.rotation(-Math.PI / 4, 0, 0, 1));
         if (this.swing_paddle_1) {
             left_paddle_transform = left_paddle_transform
                 .times(Mat4.translation(0, 0.5, 0)) // Move the pivot point to the handle
@@ -160,31 +199,109 @@ export class Assignment3 extends Scene {
             this.shapes.paddle.draw(context, program_state, left_paddle_transform, this.materials.paddle_texture_1);
         }
 
-    // Paddle 2 swing animation logic
-    if (this.swing_paddle_2) {
-        this.swing_progress_2 += dt;
-        if (this.swing_progress_2 >= 1) {
-            this.swing_progress_2 = 1;
-            this.swing_paddle_2 = false;
+        // Paddle 2 swing animation logic
+        if (this.swing_paddle_2) {
+            this.swing_progress_2 += dt;
+            if (this.swing_progress_2 >= 1) {
+                this.swing_progress_2 = 1;
+                this.swing_paddle_2 = false;
+            }
         }
-    }
-    const swing_angle_2 = Math.PI / 4 * Math.sin(this.swing_progress_2 * Math.PI);
-    // Draw the red paddle on the right side of the table (short end) and closer
-    let right_paddle_transform = model_transform.times(Mat4.translation(this.paddle2_x, 5, -5.5));
-    // Apply the rotation to tilt the handle to the top left
-    right_paddle_transform = right_paddle_transform.times(Mat4.rotation(Math.PI / 4, 0, 0, 1));
-    if (this.swing_paddle_2) {
+        const swing_angle_2 = Math.PI / 4 * Math.sin(this.swing_progress_2 * Math.PI);
+        // Draw the red paddle on the right side of the table (short end) and closer
+        let right_paddle_transform = model_transform
+            .times(Mat4.translation(this.paddle2_x, 5, -5.5));
+        // Apply the rotation to tilt the handle to the top left
         right_paddle_transform = right_paddle_transform
-            .times(Mat4.translation(0, 0.5, 0)) // Move the pivot point to the handle
-            .times(Mat4.rotation(-swing_angle_2, 1, 0, 0)) // Rotate towards the table
-            .times(Mat4.translation(0, -0.5, 0)); // Move the pivot point back
-    }
-    right_paddle_transform = right_paddle_transform
-        .times(Mat4.rotation(Math.PI / 2, 1, 0, 0))
-        .times(Mat4.scale(0.5, 0.5, 0.5));
-    if (this.shapes.paddle.ready) {
-        this.shapes.paddle.draw(context, program_state, right_paddle_transform, this.materials.paddle_texture_2);
-    }
+            .times(Mat4.rotation(Math.PI / 4, 0, 0, 1));
+        if (this.swing_paddle_2) {
+            right_paddle_transform = right_paddle_transform
+                .times(Mat4.translation(0, 0.5, 0)) // Move the pivot point to the handle
+                .times(Mat4.rotation(-swing_angle_2, 1, 0, 0)) // Rotate towards the table
+                .times(Mat4.translation(0, -0.5, 0)); // Move the pivot point back
+        }
+        right_paddle_transform = right_paddle_transform
+            .times(Mat4.rotation(Math.PI / 2, 1, 0, 0))
+            .times(Mat4.scale(0.5, 0.5, 0.5));
+        if (this.shapes.paddle.ready) {
+            this.shapes.paddle.draw(context, program_state, right_paddle_transform, this.materials.paddle_texture_2);
+        }
+
+
+        // If z of ball is near 5, check for collision with paddle 1
+        // If there is collision, pong now in phase 1
+        if (this.pongZ > 4.95 && this.pongZ < 5.05 && this.pong_loc4){
+            this.pong_loc4 = false;
+            this.pong_loc1 = true;
+            this.y_speed = 0;
+            this.pongZ = 5;
+            this.pongY = 5;
+        }
+
+
+        // If y of ball is near 0
+        // If pong_loc1 true, then pong_loc2 true
+        // Else if pong_loc3 true, then pong_loc4 true
+        if (this.pongY < 0.02){
+            if (this.pong_loc1){
+                this.pong_loc1 = false;
+                this.pong_loc2 = true;
+                this.y_speed = 0;
+                this.pongY = 0;
+                this.pongZ = 7.5
+            }
+            else if (this.pong_loc3){
+                this.pong_loc3 = false;
+                this.pong_loc4 = true;
+                this.y_speed = 0;
+                this.pongY = 0;
+                this.pongZ = 2.5
+            }
+        }
+
+        // If z of ball is near -5, check for collision with paddle 2
+        // If there is collision, pong_loc3 true
+        if (this.pongZ < -4.95 && this.pongZ > -5.05 && this.pong_loc2){
+            this.pong_loc2 = false;
+            this.pong_loc3 = true;
+            this.y_speed = 0;
+            this.pongZ = -5;
+            this.pongY = 5;
+        }
+
+        // Ping pong ball location changing based on which phase of motion
+        if (this.pong_loc1){
+            this.pongZ -= this.z_speed * dt;
+
+            this.y_speed += this.y_accel1 * dt;
+            this.pongY += this.y_speed * dt;
+        }
+        else if (this.pong_loc2){
+            this.pongZ -= this.z_speed * dt;
+
+            this.y_speed += this.y_accel2 * dt;
+            this.pongY += this.y_speed * dt;
+        }
+        else if (this.pong_loc3){
+            this.pongZ += this.z_speed * dt;
+
+            this.y_speed += this.y_accel1 * dt;
+            this.pongY += this.y_speed * dt;
+        }
+        else if (this.pong_loc4){
+            this.pongZ += this.z_speed * dt;
+
+            this.y_speed += this.y_accel2 * dt;
+            this.pongY += this.y_speed * dt;
+        }
+
+        // Draw ping pong ball in current location
+        let pong_transform = Mat4.identity()
+            .times(Mat4.translation(this.pongX, this.pongY, this.pongZ))
+            .times(Mat4.scale(0.1429, 0.1429, 0.1429)); //7 Times smaller in each direction
+
+        this.shapes.pong_ball.draw(context, program_state, pong_transform, this.materials.pong_ball);
+
     
         // Variables for barrier dimensions and positions
         const barrier_height = 1.5; // Half the height of the table
@@ -195,25 +312,37 @@ export class Assignment3 extends Scene {
         const barrier_offset_long = 6; // Offset for long barriers from center
     
         // Left barriers on the long end of the table
-        const left_long_barrier1_transform = model_transform.times(Mat4.translation(-distance_from_table_long, barrier_height, barrier_offset_long)).times(Mat4.scale(barrier_thickness, barrier_height, barrier_length));
+        const left_long_barrier1_transform = model_transform
+            .times(Mat4.translation(-distance_from_table_long, barrier_height, barrier_offset_long))
+            .times(Mat4.scale(barrier_thickness, barrier_height, barrier_length));
         this.shapes.barrier.draw(context, program_state, left_long_barrier1_transform, this.materials.barrier);
     
-        const left_long_barrier2_transform = model_transform.times(Mat4.translation(-distance_from_table_long, barrier_height, -barrier_offset_long)).times(Mat4.scale(barrier_thickness, barrier_height, barrier_length));
+        const left_long_barrier2_transform = model_transform
+            .times(Mat4.translation(-distance_from_table_long, barrier_height, -barrier_offset_long))
+            .times(Mat4.scale(barrier_thickness, barrier_height, barrier_length));
         this.shapes.barrier.draw(context, program_state, left_long_barrier2_transform, this.materials.barrier);
     
         // Right barriers on the long end of the table
-        const right_long_barrier1_transform = model_transform.times(Mat4.translation(distance_from_table_long, barrier_height, barrier_offset_long)).times(Mat4.scale(barrier_thickness, barrier_height, barrier_length));
+        const right_long_barrier1_transform = model_transform
+            .times(Mat4.translation(distance_from_table_long, barrier_height, barrier_offset_long))
+            .times(Mat4.scale(barrier_thickness, barrier_height, barrier_length));
         this.shapes.barrier.draw(context, program_state, right_long_barrier1_transform, this.materials.barrier);
     
-        const right_long_barrier2_transform = model_transform.times(Mat4.translation(distance_from_table_long, barrier_height, -barrier_offset_long)).times(Mat4.scale(barrier_thickness, barrier_height, barrier_length));
+        const right_long_barrier2_transform = model_transform
+            .times(Mat4.translation(distance_from_table_long, barrier_height, -barrier_offset_long))
+            .times(Mat4.scale(barrier_thickness, barrier_height, barrier_length));
         this.shapes.barrier.draw(context, program_state, right_long_barrier2_transform, this.materials.barrier);
     
         // Front barrier on the short end of the table
-        const front_barrier_transform = model_transform.times(Mat4.translation(0, barrier_height, distance_from_table_short)).times(Mat4.scale(barrier_length, barrier_height, barrier_thickness));
+        const front_barrier_transform = model_transform
+            .times(Mat4.translation(0, barrier_height, distance_from_table_short))
+            .times(Mat4.scale(barrier_length, barrier_height, barrier_thickness));
         this.shapes.barrier.draw(context, program_state, front_barrier_transform, this.materials.barrier);
     
         // Back barrier on the short end of the table
-        const back_barrier_transform = model_transform.times(Mat4.translation(0, barrier_height, -distance_from_table_short)).times(Mat4.scale(barrier_length, barrier_height, barrier_thickness));
+        const back_barrier_transform = model_transform
+            .times(Mat4.translation(0, barrier_height, -distance_from_table_short))
+            .times(Mat4.scale(barrier_length, barrier_height, barrier_thickness));
         this.shapes.barrier.draw(context, program_state, back_barrier_transform, this.materials.barrier);
     }
 }

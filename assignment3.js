@@ -86,7 +86,7 @@ export class Assignment3 extends Scene {
 
         // pong ball position
         this.pongX = 0;
-        this.pongY = 5;
+        this.pongY = 6.2;
         this.pongZ = 5;
 
         // pong ball timestamp; will use this timestamp and which motion phase ball is in to get position
@@ -233,9 +233,22 @@ export class Assignment3 extends Scene {
 
         // Ball collision detection //
 
+        // Out of bounds; game ends
+        if ((this.pong_loc2 && this.pongZ < -5.5) || (this.pong_loc4 && this.pongZ > 5.5)){
+            this.in_bounds = false;
+        }
+
         // If z of ball is near 5, check for collision with paddle 1
         // If there is collision, pong now in phase 1
-        if (this.pongZ > 4.95 && this.pong_loc4) {
+        if (this.pongZ > 4.95 && this.pongZ < 5.05 && this.pong_loc4 && Math.abs(this.pongX - this.paddle1_x) < .65) {
+
+            // Swing paddle 1
+            if (!this.swing_paddle_1) {
+                this.swing_paddle_1 = true;
+                this.swing_progress_1 = 0;
+            }
+
+            // Change movement phase and get timestamp of collision
             this.pong_timestamp = t;
             this.pong_loc4 = false;
             this.pong_loc1 = true;
@@ -244,7 +257,8 @@ export class Assignment3 extends Scene {
         // If y of ball is near 3 (table edge)
         // If pong_loc1 true, then pong_loc2 true
         // Else if pong_loc3 true, then pong_loc4 true
-        if (this.pongY < 3.05 ){
+        if (this.pongY < 4.25){
+
             if (this.pong_loc1){
                 this.pong_timestamp = t;
                 this.pong_loc1 = false;
@@ -259,7 +273,15 @@ export class Assignment3 extends Scene {
 
         // If z of ball is near -5, check for collision with paddle 2
         // If there is collision, pong_loc3 true
-        if (this.pongZ < -4.95 && this.pong_loc2){
+        if (this.pongZ < -4.95 && this.pongZ > -5.05 && this.pong_loc2 && Math.abs(this.pongX - this.paddle2_x) < .65){
+
+            // Swing paddle 2
+            if (!this.swing_paddle_2) {
+                this.swing_paddle_2 = true;
+                this.swing_progress_2 = 0;
+            }
+
+            // Change movement phase and get timestamp of collision
             this.pong_timestamp = t;
             this.pong_loc2 = false;
             this.pong_loc3 = true;
@@ -269,32 +291,34 @@ export class Assignment3 extends Scene {
         let delta_t = t - this.pong_timestamp;
         if (this.pong_loc1){
             this.pongZ = (delta_t) * (-7.5) + 5;
-            this.pongY = (5 - (4 * (delta_t) * (delta_t)));
+            this.pongY = (6.2 - (4 * (delta_t) * (delta_t)));
         }
 
         // y position same as phase 1, z is flipped
         else if (this.pong_loc3){
             this.pongZ = (delta_t) * 7.5 - 5;
-            this.pongY = (5 - 4 * (delta_t) * (delta_t));
+            this.pongY = (6.2 - 4 * (delta_t) * (delta_t));
         }
 
         else if (this.pong_loc2){
             this.pongZ = (delta_t) * (-5) - 2.5;
-            this.pongY = (3 + 6 * delta_t - 8 * (delta_t) * (delta_t));
+            this.pongY = (4.2 + 6 * delta_t - 8 * (delta_t) * (delta_t));
         }
 
         // y position same as phase 2, z is flipped
         else if (this.pong_loc4){
             this.pongZ = (delta_t) * (5) + 2.5;
-            this.pongY = (3 + 6 * delta_t - 8 * (delta_t) * (delta_t));
+            this.pongY = (4.2 + 6 * delta_t - 8 * (delta_t) * (delta_t));
         }
 
         // Draw ping pong ball in current location
         let pong_transform = Mat4.identity()
             .times(Mat4.translation(this.pongX, this.pongY, this.pongZ))
             .times(Mat4.scale(0.1429, 0.1429, 0.1429)); //7 Times smaller in each direction
+        if (this.in_bounds){
+            this.shapes.pong_ball.draw(context, program_state, pong_transform, this.materials.pong_ball);
+        }
 
-        this.shapes.pong_ball.draw(context, program_state, pong_transform, this.materials.pong_ball);
 
 
         // // If z of ball is near 5, check for collision with paddle 1

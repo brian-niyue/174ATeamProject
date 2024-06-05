@@ -62,9 +62,9 @@ export class Assignment3 extends Scene {
 
 
         this.initial_camera_location = Mat4.look_at(
-            vec3(0, 10, 20),
-            vec3(0, 0, 0),
-            vec3(0, 1, 0));
+            vec3(0, 10, 20), // Eye pos
+            vec3(0, 0, 0), // COI
+            vec3(0, 1, 0)); // Top pos
 
         this.paddle1_x = 0;
         this.paddle2_x = 0;
@@ -137,6 +137,21 @@ export class Assignment3 extends Scene {
             this.children.push(context.scratchpad.controls = new defs.Movement_Controls());
             // Define the global camera and projection matrices, which are stored in program_state.
             program_state.set_camera(this.initial_camera_location);
+        }
+
+
+        // Move camera when ball is out of bounds
+        if (!(this.pongZ > -5.25 && this.pongZ < 5.25)){
+            if (this.pongY > 0){
+                let ball_position = vec3(this.pongX, this.pongY, this.pongZ);
+                let camera_position = vec3(this.pongX, this.pongY + 10, this.pongZ + 10);
+
+                let view_matrix = Mat4.look_at(camera_position, ball_position, vec3(0, 1, 0));
+                program_state.set_camera(view_matrix);
+            }
+            else{
+                program_state.set_camera(this.initial_camera_location);
+            }
         }
     
         program_state.projection_transform = Mat4.perspective(
@@ -265,7 +280,7 @@ export class Assignment3 extends Scene {
         // If y of ball is near 4.2 (table edge height)
         // If pong_loc1 true, then pong_loc2 true
         // Else if pong_loc3 true, then pong_loc4 true
-        if (this.pongY < 4.2){
+        if (this.pongY < 4.35){
 
             if (this.pong_loc1){
                 this.pong_timestamp = t;

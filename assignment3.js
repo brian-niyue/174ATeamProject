@@ -265,7 +265,7 @@ export class Assignment3 extends Scene {
         // If y of ball is near 4.2 (table edge height)
         // If pong_loc1 true, then pong_loc2 true
         // Else if pong_loc3 true, then pong_loc4 true
-        if (this.pongY < 4.25){
+        if (this.pongY < 4.2){
 
             if (this.pong_loc1){
                 this.pong_timestamp = t;
@@ -306,14 +306,14 @@ export class Assignment3 extends Scene {
         // Travels 3/4 of X and Z distance in 1 second
         if (this.pong_loc1){
             this.pongZ = (delta_t) * (-7.5) + 5;
-            this.pongY = (6.2 - (4 * (delta_t) * (delta_t)));
+            this.pongY = (6.2 - (2 * (delta_t) * (delta_t)));
             this.pongX = (delta_t) * ((.75)*(this.pongXGoal - this.pongXLast)) + this.pongXLast;
         }
 
         // y position same as phase 1, z is flipped
         else if (this.pong_loc3){
             this.pongZ = (delta_t) * 7.5 - 5;
-            this.pongY = (6.2 - (4 * (delta_t) * (delta_t)));
+            this.pongY = (6.2 - (2 * (delta_t) * (delta_t)));
             this.pongX = (delta_t) * ((.75)*(this.pongXGoal - this.pongXLast)) + this.pongXLast;
         }
 

@@ -85,9 +85,12 @@ export class Assignment3 extends Scene {
         this.pong_loc4= false;
 
         // pong ball position
-        this.pongX = 0;
         this.pongY = 6.2;
         this.pongZ = 5;
+
+        this.pongX = 0; // Current X position, will get this by interpolating through z position and similar triangles
+        this.pongXLast = 0; // Last X position prior to collision, will use this to calculate current pongX
+        this.pongXGoal = 0; // Stores goal x position after collision in loc2 or loc 4
 
         // pong ball timestamp; will use this timestamp and which motion phase ball is in to get position
         this.pong_timestamp = 0;
@@ -234,7 +237,7 @@ export class Assignment3 extends Scene {
         // Ball collision detection //
 
         // Out of bounds; game ends
-        if ((this.pong_loc2 && this.pongZ < -5.5) || (this.pong_loc4 && this.pongZ > 5.5)){
+        if ((this.pong_loc2 && this.pongZ < -8) || (this.pong_loc4 && this.pongZ > 8)){
             this.in_bounds = false;
         }
 
@@ -252,9 +255,14 @@ export class Assignment3 extends Scene {
             this.pong_timestamp = t;
             this.pong_loc4 = false;
             this.pong_loc1 = true;
+
+            // Get new X position (will be from -1.8 to 1.8)
+            this.pongXLast = this.pongXGoal;
+            this.pongX = this.pongXGoal;
+            this.pongXGoal = Math.random() * 3.6 - 1.8;
         }
 
-        // If y of ball is near 3 (table edge)
+        // If y of ball is near 4.2 (table edge height)
         // If pong_loc1 true, then pong_loc2 true
         // Else if pong_loc3 true, then pong_loc4 true
         if (this.pongY < 4.25){
@@ -285,30 +293,44 @@ export class Assignment3 extends Scene {
             this.pong_timestamp = t;
             this.pong_loc2 = false;
             this.pong_loc3 = true;
+
+            // Get new X position (will be from -1.8 to 1.8)
+            this.pongXLast = this.pongXGoal;
+            this.pongX = this.pongXGoal;
+            this.pongXGoal = Math.random() * 3.6 - 1.8;
         }
 
         // Ball movement update //
         let delta_t = t - this.pong_timestamp;
+
+        // Travels 3/4 of X and Z distance in 1 second
         if (this.pong_loc1){
             this.pongZ = (delta_t) * (-7.5) + 5;
             this.pongY = (6.2 - (4 * (delta_t) * (delta_t)));
+            this.pongX = (delta_t) * ((.75)*(this.pongXGoal - this.pongXLast)) + this.pongXLast;
         }
 
         // y position same as phase 1, z is flipped
         else if (this.pong_loc3){
             this.pongZ = (delta_t) * 7.5 - 5;
-            this.pongY = (6.2 - 4 * (delta_t) * (delta_t));
+            this.pongY = (6.2 - (4 * (delta_t) * (delta_t)));
+            this.pongX = (delta_t) * ((.75)*(this.pongXGoal - this.pongXLast)) + this.pongXLast;
         }
 
+        // Travels 1/4 of X and Z distance in .5 seconds; intercept is 3/4 of the distance to the other side
         else if (this.pong_loc2){
             this.pongZ = (delta_t) * (-5) - 2.5;
             this.pongY = (4.2 + 6 * delta_t - 8 * (delta_t) * (delta_t));
+            this.pongX = (delta_t) * ((.5)*(this.pongXGoal - this.pongXLast))
+                + this.pongXLast + ((.75) * (this.pongXGoal - this.pongXLast));
         }
 
         // y position same as phase 2, z is flipped
         else if (this.pong_loc4){
             this.pongZ = (delta_t) * (5) + 2.5;
             this.pongY = (4.2 + 6 * delta_t - 8 * (delta_t) * (delta_t));
+            this.pongX = (delta_t) * ((.5)*(this.pongXGoal - this.pongXLast))
+                + this.pongXLast + ((.75) * (this.pongXGoal - this.pongXLast));
         }
 
         // Draw ping pong ball in current location
@@ -320,7 +342,7 @@ export class Assignment3 extends Scene {
         }
 
 
-
+        // // dt position update method
         // // If z of ball is near 5, check for collision with paddle 1
         // // If there is collision, pong now in phase 1
         // if (this.pongZ > 4.95 && this.pongZ < 5.05 && this.pong_loc4){

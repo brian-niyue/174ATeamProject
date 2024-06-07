@@ -24,7 +24,11 @@ export class Assignment3 extends Scene {
             floor: new defs.Cube(), // Define a cube shape for the floor
             barrier: new defs.Cube(), // Define a cube shape for the barriers
             pong_ball: new defs.Subdivision_Sphere(4),
+            text: new Text_Line(12),
         };
+
+        // Textured Phong
+        const textured = new defs.Textured_Phong(1);
 
         // *** Materials
         this.materials = {
@@ -57,8 +61,10 @@ export class Assignment3 extends Scene {
             pong_ball: new Material(new defs.Phong_Shader(), {
                 color: hex_color("#F06400"), ambient: 1, diffusivity: 1,  specularity: 1
             }),
+            text_image: new Material(textured, {
+                ambient: 1, diffusivity: 0, specularity: 0, texture: new Texture("assets/text.png")
+            }),
         }
-
 
 
         this.initial_camera_location = Mat4.look_at(
@@ -97,6 +103,9 @@ export class Assignment3 extends Scene {
 
         // checks if game over
         this.in_bounds = true;
+
+        // keeps track of score
+        this.score = 0;
 
         // // pong ball z direction speed
         // this.z_speed = 7.5;
@@ -142,7 +151,7 @@ export class Assignment3 extends Scene {
 
         // Move camera when ball is out of bounds
         if (!(this.pongZ > -5.25 && this.pongZ < 5.25)){
-            if (this.pongY > 0){
+            if (this.pongY > -2){
                 let ball_position = vec3(this.pongX, this.pongY, this.pongZ);
                 let camera_position = vec3(this.pongX, this.pongY + 10, this.pongZ + 10);
 
@@ -275,6 +284,9 @@ export class Assignment3 extends Scene {
             this.pongXLast = this.pongXGoal;
             this.pongX = this.pongXGoal;
             this.pongXGoal = Math.random() * 3.6 - 1.8;
+
+            // Update score
+            this.score++;
         }
 
         // If y of ball is near 4.2 (table edge height)
@@ -313,6 +325,9 @@ export class Assignment3 extends Scene {
             this.pongXLast = this.pongXGoal;
             this.pongX = this.pongXGoal;
             this.pongXGoal = Math.random() * 3.6 - 1.8;
+
+            // Update score
+            this.score++;
         }
 
         // Ball movement update //
@@ -356,6 +371,12 @@ export class Assignment3 extends Scene {
             this.shapes.pong_ball.draw(context, program_state, pong_transform, this.materials.pong_ball);
         }
 
+        // Display score
+        let score_transform = Mat4.identity()
+            .times(Mat4.translation(8, 6, -10))
+            .times(Mat4.scale(0.5, 0.5, 0.5)); //2 Times smaller in each direction;
+        this.shapes.text.set_string("Rally:" + this.score.toString(), context.context);
+        this.shapes.text.draw(context, program_state, score_transform, this.materials.text_image);
 
         // // dt position update method
         // // If z of ball is near 5, check for collision with paddle 1
